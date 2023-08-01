@@ -1,0 +1,103 @@
+pipeline {
+    
+    agent {
+        
+        docker {
+            
+        
+            image 'hashicorp/terraform:latest'
+            args  '--entrypoint="" -u root -v /opt/jenkins/.aws:/root/.aws'
+        
+        }
+        
+    }
+    
+    
+    stages {
+        
+        stage("pull terraform code from github") {
+            
+            steps {
+                
+                 git branch: 'Dev', url: 'https://github.com/422divya/terraform-aws-infrastructure-env.git'
+            }
+            
+        }
+        
+       
+        stage("Terraform init") {
+             
+            steps {
+                
+               
+                
+                dir('environment/Dev') {
+                    
+                sh 'terraform init'
+                
+                } 
+            }
+            
+        }
+        
+        
+        stage("validate the terraform code") {
+            
+            steps {
+                sh "cd environment/Dev; terraform validate"
+            }
+        }
+        
+        stage("Terraform Plan") {
+            
+            steps {
+                
+                dir('environment/Dev') {
+                
+                sh "terraform plan -out terraform-dev.tfplan; echo \$? > status"
+            }
+            
+        }
+        }
+        
+        
+        
+        stage("Terraform Apply") {
+            
+            steps {
+                dir('environment/Dev') {
+                
+                script {
+                    
+                    def apply = false
+                    input message: 'Kindly confirm whether to apply the plan', ok: 'Ready to apply the plan'
+                    apply = true
+                    
+                    
+                    if (apply) {
+                        sh 'terraform apply terraform-dev.tfplan'
+                    }
+                }
+            }
+            
+        }
+        }
+        
+        
+        stage("Destroy") {
+            
+            steps {
+                dir('environment/Dev') {
+                sh 'terraform $Option -auto-approve'  
+                
+            }
+        }
+        }
+        
+        
+        
+        
+    }
+    
+}    
+    
